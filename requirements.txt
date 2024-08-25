@@ -1,0 +1,4 @@
+panoramisk
+redis
+requests
+websocket-client
