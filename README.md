@@ -56,7 +56,7 @@ nano config.ini
 
 + ARI - python ari_engine.py
 + AMI - python ami_engine.py
-+ AMI + Clic2call - python app.py
++ AMI + Click2call - python app.py
 
 
 Пример конфигурации [systemd](/examples/b24_integration.service) для автоматического запуска
