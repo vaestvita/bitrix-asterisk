@@ -3,6 +3,7 @@ import re
 import json
 import configparser
 import logging
+import asyncio
 
 import redis
 
@@ -52,7 +53,50 @@ manager = Manager(
     secret=SECRET,
     ping_delay=1,  # Delay after start
     ping_interval=3,  # Periodically ping AMI (dead or alive)
+    loop=asyncio.get_event_loop(),
 )
+
+
+async def originate(extension, phone_num, call_id):
+    """
+    Функция для инициации вызова.
+    """
+    action = {
+        'Action': 'Originate',
+        'Channel': f'Local/{extension}@from-internal',
+        'WaitTime': 20,
+        'CallerID': phone_num,
+        'Variable': f'BITRIX_CALL_ID={call_id}',
+        'Exten': phone_num,
+        'Context': 'from-internal',
+        'Priority': 1
+    }
+
+    await manager.send_action(action)
+
+
+@manager.register_event('*')
+async def ami_callback(mngr: Manager, message: Message):
+    linked_id = message.Linkedid
+    if LOGGING:
+        logger = utils.setup_logger(linked_id)
+        logger.info(message)
+
+@manager.register_event('VarSet')
+async def ami_callback(mngr: Manager, message: Message):
+    linked_id = message.Linkedid
+    if message.Variable == 'BITRIX_CALL_ID':
+
+        call_data = {
+            'call_id': message.Value,
+            'type': 1,
+            'start_time': time.time(),
+            'internal': message.Exten,
+            'click2call': True,
+        }
+
+        r.json().set(linked_id, "$", call_data)
+        
 
 @manager.register_event('CEL')
 async def ami_callback(mngr: Manager, message: Message):
@@ -60,10 +104,6 @@ async def ami_callback(mngr: Manager, message: Message):
     context = message.Context
     event = message.EventName
     app = message.Application
-
-    if LOGGING:
-        logger = utils.setup_logger(linked_id)
-        logger.info(message)
 
     call_data = r.json().get(linked_id, "$")
 
@@ -127,8 +167,6 @@ async def ami_callback(mngr: Manager, message: Message):
                 r.json().set(linked_id, "$.status", 200)
                 if call_data[0]['type'] == 2:
                     r.json().set(linked_id, "$.internal", message.CallerIDnum)
-            elif context in ['ext-queues']:
-                r.json().set(linked_id, "$.queue", True)
 
     elif event == 'BLINDTRANSFER':
         if call_data:
@@ -142,13 +180,17 @@ async def ami_callback(mngr: Manager, message: Message):
             r.json().set(linked_id, "$.internal", target_internal.split('/')[1].split('@')[0])
 
     elif event == 'HANGUP':
-        if call_data and call_data[0].get('status') != 200:
-            if context in LOC_CONTEXTS:
-                extra = json.loads(message.Extra)
-                dialstatus = STATUSES.get(str(extra.get('hangupcause')), 304)
-                r.json().set(linked_id, "$.status", dialstatus)
+        if call_data and context in LOC_CONTEXTS:
+            status = call_data[0].get('status')
+            extra = json.loads(message.Extra)
+            status_code = STATUSES.get(str(extra.get('hangupcause')), 304)
+            if status != 200 and 'click2call' not in call_data[0]:
+                r.json().set(linked_id, "$.status", status_code)
                 if call_data[0]['type'] == 2:
                     r.json().set(linked_id, "$.internal", message.CallerIDnum)
+            elif status == 200 and 'click2call' in call_data[0]:
+                if extra.get('dialstatus') in ['CANCEL', 'BUSY']:
+                    r.json().set(linked_id, "$.status", status_code)
 
     elif event == 'LINKEDID_END':
         if call_data:

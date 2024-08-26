@@ -71,9 +71,18 @@ def get_user_id(user_phone):
 
     resp = requests.post(f'{B24_URL}user.get', json=payload)
     if resp.status_code == 200:
-        return resp.json()['result'][0]['ID']
-    else:
-        return None
+        user_data = resp.json().get('result', {})
+        return user_data[0].get('ID')
+    
+
+def get_user_phone(user_id):
+    payload = {
+        'ID': user_id
+    }
+    resp = requests.post(f'{B24_URL}user.get', json=payload)
+    if resp.status_code == 200:
+        user_data = resp.json().get('result', {})
+        return user_data[0].get('UF_PHONE_INNER')
 
 
 def card_action(call_id, user_phone, action):

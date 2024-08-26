@@ -6,6 +6,10 @@
 
 Работает с AMI событиями [CEL](/ami_cel.py) или [ARI](/ari_engine.py)
 
+## Настройка на стороне Битрикс24
++ Входящий вебхук с правами: crm, user, telephony. Интеграции > Rest API > Другое > Входящий вебхук
++ Исходящий вебхук для события ONEXTERNALCALLSTART (звонок по клику)
+
 ### Установка 
 
 Для временного хранения информации о звонках используется [RedisJSON](https://github.com/RedisJSON/RedisJSON) 
@@ -27,7 +31,8 @@ nano config.ini
 ### Заполнить данные в [config.ini](examples/config.ini)
 
 Описание параметров [bitrix]
-+ [url] - Адрес воходящего вебхука. Интеграции > Rest API > Другое > Входящий вебхук (Необходимые права: crm, user, telephony)
++ [url] - Адрес воходящего вебхука.
++ [token] - Выдаётся Битриксом при создании исходящего вебхука
 + [crm_create] - Создавать или нет сущность CRM (1/0)
 + [show_card] - Показывать или нет карточку клиента (1/0)
 + [default_phone] - Внутренний номер по умолчанию (должен быть указан в настройках телефонии - пользователи телефонии).
@@ -48,9 +53,10 @@ nano config.ini
 
 ## Запуск интеграции
 
-```
-ARI - python ari_engine.py
-AMI - python ami_cel.py
-```
+
++ ARI - python ari_engine.py
++ AMI - python ami_engine.py
++ AMI + Clic2call - python app.py
+
 
 Пример конфигурации [systemd](/examples/b24_integration.service) для автоматического запуска
