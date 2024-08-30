@@ -46,6 +46,14 @@ async def b24_handler():
         if internal:
             await engine.originate(internal, external, call_id)
 
+        else:
+            call_data = {
+                'call_id': call_id,
+                'duration': 0,
+                'status': 403,
+            }
+            bitrix.finish_call(call_data, user_id)
+
         return 'ok'
     
     else:
