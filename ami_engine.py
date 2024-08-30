@@ -4,6 +4,8 @@ import json
 import configparser
 import logging
 import asyncio
+import requests
+import base64
 
 import redis
 
@@ -25,6 +27,9 @@ DEFAULT_PHONE = config.get('bitrix', 'default_phone')
 LOCAL_COUNT = config.getint('asterisk', 'loc_count')
 LOGGING = config.getboolean('asterisk', 'logging')
 SHOW_CARD = config.getint('bitrix', 'show_card')
+RECORD_URL = config.get('asterisk', 'records_url')
+RECORD_USER = config.get('asterisk', 'record_user')
+RECORD_PASS = config.get('asterisk', 'record_pass')
 
 CONTEXTS = IN_CONTEXTS + LOC_CONTEXTS
 
@@ -78,6 +83,7 @@ async def originate(extension, phone_num, call_id):
 @manager.register_event('*')
 async def ami_callback(mngr: Manager, message: Message):
     linked_id = message.Linkedid
+    # print(message)
     if LOGGING:
         logger = utils.setup_logger(linked_id)
         logger.info(message)
@@ -198,6 +204,12 @@ async def ami_callback(mngr: Manager, message: Message):
             call_data['duration'] = round(time.time() - call_data['start_time'])
             resp = bitrix.finish_call(call_data)
             if resp.status_code == 200:
+                if call_data['status'] == 200 and call_data.get('file_path'):
+                    file_data = requests.get(f'{RECORD_URL}{call_data["file_path"]}', auth=(RECORD_USER, RECORD_PASS))
+                    if file_data.status_code == 200:
+                        file_content = file_data.content
+                        file_base64 = base64.b64encode(file_content).decode('utf-8')
+                        bitrix.upload_file(call_data, file_base64)
                 r.json().delete(linked_id, "$")
 
 

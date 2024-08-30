@@ -3,9 +3,9 @@ import configparser
 import asyncio
 import threading
 
-import bitrix
-import ami_engine
-from ami_engine import manager
+import bitrix as bitrix
+
+import ami_engine as engine
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -44,7 +44,7 @@ async def b24_handler():
         external = request.form.get('data[PHONE_NUMBER]')
         internal = bitrix.get_user_phone(user_id)
         if internal:
-            await ami_engine.originate(internal, external, call_id)
+            await engine.originate(internal, external, call_id)
 
         return 'ok'
     
@@ -52,16 +52,16 @@ async def b24_handler():
         return 'Not supported event', 400
 
 
-def run_ami_manager():
+def run_engine():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(
-        manager.connect(run_forever=True)
+        engine.manager.connect(run_forever=True)
     )
 
 if __name__ == '__main__':
-    ami_thread = threading.Thread(target=run_ami_manager, daemon=True)
+    ami_thread = threading.Thread(target=run_engine, daemon=True)
     ami_thread.start()
     
     app.run(debug=True, host='0.0.0.0', port=8000, use_reloader=False)

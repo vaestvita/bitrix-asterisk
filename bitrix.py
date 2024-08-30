@@ -1,7 +1,7 @@
 import os
 import requests
 import configparser
-import base64
+import logging
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -11,9 +11,10 @@ B24_URL = config.get('bitrix', 'url')
 CRM_CREATE = config.get('bitrix', 'crm_create')
 SHOW_CARD = config.get('bitrix', 'show_card')
 DEFAULT_PHONE = config.get('bitrix', 'default_phone')
-RECORD_URL = config.get('asterisk', 'records_url')
-RECORD_USER = config.get('asterisk', 'record_user')
-RECORD_PASS = config.get('asterisk', 'record_pass')
+
+
+logging.basicConfig(level=logging.INFO, format='%(message)s', filename='log.txt')
+logger = logging.getLogger()
 
 def register_call(call_data: dict):
     payload = {
@@ -25,41 +26,56 @@ def register_call(call_data: dict):
     }
 
     resp = requests.post(f'{B24_URL}telephony.externalcall.register', json=payload)
-    # print(resp.json())
+    logger.info(f'register_call report: {resp.json()}')
+    reg_data = resp.json()
+    
+    if 'error' in reg_data:
+        error_description = reg_data.get('error_description')
+        if error_description == 'USER_ID or USER_PHONE_INNER should be set':
+            call_data['internal'] = DEFAULT_PHONE
+            return register_call(call_data)
+
     if resp.status_code == 200:
-        result = resp.json()['result']
+        result = reg_data.get('result', {})
+        call_id = result.get('CALL_ID')
+        return call_id
 
-        return result['CALL_ID']
-    else:
-        return None
+    return None
 
 
-def finish_call(call_data: dict):
+def upload_file(call_data, file_base64):
     payload = {
         'CALL_ID': call_data['call_id'],
-        'USER_PHONE_INNER': call_data['internal'],
+        'FILENAME': os.path.basename(call_data['file_path']),
+        'FILE_CONTENT': file_base64
+    }
+    upload_file = requests.post(f'{B24_URL}telephony.externalCall.attachRecord', json=payload)
+    logger.info(f'upload_file report: {upload_file.json()}')
+    # print(upload_file.json())
+
+
+def finish_call(call_data: dict, user_id=None):
+    payload = {
+        'CALL_ID': call_data['call_id'],
+        'USER_ID': user_id,
+        'USER_PHONE_INNER': call_data.get('internal'),
         'DURATION': call_data['duration'],
         'STATUS_CODE': call_data['status']
     }
 
     resp = requests.post(f'{B24_URL}telephony.externalcall.finish', json=payload)
+    finish_data = resp.json()
+    logger.info(f'Call finish report: {finish_data}')
 
-    if resp.status_code == 200:
-        if call_data['status'] == 200 and call_data.get('file_path'):
-            file_data = requests.get(f'{RECORD_URL}{call_data["file_path"]}', auth=(RECORD_USER, RECORD_PASS))
-            if file_data.status_code == 200:
-                file_content = file_data.content
-                file_base64 = base64.b64encode(file_content).decode('utf-8')
+    # Проверяем наличие ошибки и необходимость повтора запроса
+    if 'error' in finish_data:
+        error_description = finish_data.get('error_description')
+        if error_description == 'USER_ID or USER_PHONE_INNER should be set':
+            call_data['internal'] = DEFAULT_PHONE
+            finish_call(call_data)
+    # print(resp.json())
 
-                payload = {
-                    'CALL_ID': call_data['call_id'],
-                    'FILENAME': os.path.basename(call_data['file_path']),
-                    'FILE_CONTENT': file_base64
-                }
-                upload_file = requests.post(f'{B24_URL}telephony.externalCall.attachRecord', json=payload)
-                # print(upload_file.json())
     return resp
-
 
 
 def get_user_id(user_phone):
@@ -73,6 +89,8 @@ def get_user_id(user_phone):
     if resp.status_code == 200:
         user_data = resp.json().get('result', {})
         return user_data[0].get('ID')
+    else:
+        return None
     
 
 def get_user_phone(user_id):
@@ -83,6 +101,8 @@ def get_user_phone(user_id):
     if resp.status_code == 200:
         user_data = resp.json().get('result', {})
         return user_data[0].get('UF_PHONE_INNER')
+    else:
+        return None
 
 
 def card_action(call_id, user_phone, action):
