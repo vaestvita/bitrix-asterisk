@@ -195,7 +195,7 @@ async def ami_callback(mngr: Manager, message: Message):
                 if call_data[0]['type'] == 2:
                     r.json().set(linked_id, "$.internal", message.CallerIDnum)
             elif status == 200 and 'click2call' in call_data[0]:
-                if extra.get('dialstatus') in ['CANCEL', 'BUSY']:
+                if extra.get('dialstatus') in ['CANCEL', 'BUSY', 'NOANSWER']:
                     r.json().set(linked_id, "$.status", status_code)
 
     elif event == 'LINKEDID_END':
