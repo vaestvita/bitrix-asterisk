@@ -13,8 +13,8 @@ SHOW_CARD = config.get('bitrix', 'show_card')
 DEFAULT_PHONE = config.get('bitrix', 'default_phone')
 
 
-logging.basicConfig(level=logging.INFO, format='%(message)s', filename='log.txt')
-logger = logging.getLogger()
+# logging.basicConfig(level=logging.INFO, format='%(message)s', filename='bitrix.log')
+# logger = logging.getLogger()
 
 def register_call(call_data: dict):
     payload = {
@@ -26,7 +26,7 @@ def register_call(call_data: dict):
     }
 
     resp = requests.post(f'{B24_URL}telephony.externalcall.register', json=payload)
-    logger.info(f'register_call report: {resp.json()}')
+    # logger.info(f'register_call report: {resp.json()}')
     reg_data = resp.json()
     
     if 'error' in reg_data:
@@ -50,7 +50,7 @@ def upload_file(call_data, file_base64):
         'FILE_CONTENT': file_base64
     }
     upload_file = requests.post(f'{B24_URL}telephony.externalCall.attachRecord', json=payload)
-    logger.info(f'upload_file report: {upload_file.json()}')
+    # logger.info(f'upload_file report: {upload_file.json()}')
     # print(upload_file.json())
 
 
@@ -59,13 +59,13 @@ def finish_call(call_data: dict, user_id=None):
         'CALL_ID': call_data['call_id'],
         'USER_ID': user_id,
         'USER_PHONE_INNER': call_data.get('internal'),
-        'DURATION': call_data['duration'],
-        'STATUS_CODE': call_data['status']
+        'DURATION': call_data.get('duration', 0),
+        'STATUS_CODE': call_data.get('status', 403)
     }
 
     resp = requests.post(f'{B24_URL}telephony.externalcall.finish', json=payload)
     finish_data = resp.json()
-    logger.info(f'Call finish report: {finish_data}')
+    # logger.info(f'Call finish report: {finish_data}')
 
     # Проверяем наличие ошибки и необходимость повтора запроса
     if 'error' in finish_data:

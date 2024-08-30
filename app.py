@@ -6,6 +6,8 @@ import threading
 import bitrix as bitrix
 
 import ami_engine as engine
+import originate
+import utils
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -15,20 +17,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def project_info():
-    if request.method == 'GET' or request.method == 'POST':
-        info = {
-            'App': {
-                'Name': 'AMI/ARI integration of Asterisk-based PBX with Bitrix24 CRM',
-                'URL': 'https://github.com/vaestvita/bitrix-asterisk'
-            },
-            'Developer': {
-                'Name': 'Anton Gulin',
-                'Phone': '+7 705 864 55 43',
-                'Mail': 'antgulin@ya.ru'
-            }
-        }
-        return jsonify(info)
-  
+    return jsonify(utils.author_info)  
     
 @app.route('/bitrix', methods=['POST'])
 async def b24_handler():
@@ -44,15 +33,10 @@ async def b24_handler():
         external = request.form.get('data[PHONE_NUMBER]')
         internal = bitrix.get_user_phone(user_id)
         if internal:
-            await engine.originate(internal, external, call_id)
+            await originate.originate(internal, external, call_id)
 
         else:
-            call_data = {
-                'call_id': call_id,
-                'duration': 0,
-                'status': 403,
-            }
-            bitrix.finish_call(call_data, user_id)
+            bitrix.finish_call({'call_id': call_id}, user_id)
 
         return 'ok'
     

@@ -1,15 +1,11 @@
-import sys
-import os
-
 from flask import Flask, request, jsonify
 import configparser
 import base64
-
 import redis
 import requests
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import bitrix
+from ..bitrix import *
+from ..utils import author_info
 
 
 config = configparser.ConfigParser()
@@ -34,19 +30,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def project_info():
-    if request.method == 'GET' or request.method == 'POST':
-        info = {
-            'App': {
-                'Name': 'AMI/ARI integration of Asterisk-based PBX with Bitrix24 CRM',
-                'URL': 'https://github.com/vaestvita/bitrix-asterisk'
-            },
-            'Developer': {
-                'Name': 'Anton Gulin',
-                'Phone': '+7 705 864 55 43',
-                'Mail': 'antgulin@ya.ru'
-            }
-        }
-        return jsonify(info)
+    return jsonify(author_info)
 
 
 async def ys_api(data: dict, method: str):
@@ -85,10 +69,9 @@ async def ys_handler():
                 'type': 2
             }
 
-
     if call_data:
         try:
-            call_id = bitrix.register_call(call_data)
+            call_id = register_call(call_data)
             call_data['call_id'] = call_id
             r.json().set(callid, "$", call_data)
         except Exception as e:
@@ -114,7 +97,7 @@ async def ys_handler():
             if status == 'ANSWERED':
                 call_data['recording'] = event_data.get('recording')
 
-            resp = bitrix.finish_call(call_data)
+            resp = finish_call(call_data)
             if resp.status_code == 200:
                 if call_data.get('recording'):
                     resp = await ys_api({'recording': call_data.get('recording')}, 'recording/get_random')
@@ -125,7 +108,7 @@ async def ys_handler():
                         if file_data.status_code == 200:
                             file_content = file_data.content
                             file_base64 = base64.b64encode(file_content).decode('utf-8')
-                            bitrix.upload_file(call_data, file_base64)
+                            upload_file(call_data, file_base64)
                 r.json().delete(callid, "$")        
 
     return jsonify({"status": "ok"}), 200
@@ -143,11 +126,10 @@ async def b24_handler():
         user_id = request.form.get('data[USER_ID]')
         call_id = request.form.get('data[CALL_ID]')
         external = request.form.get('data[PHONE_NUMBER]')
-        internal = bitrix.get_user_phone(user_id)
+        internal = get_user_phone(user_id)
 
         call_data = {
             'call_id': call_id,
-            'duration': 0,
         }
         if internal:
             payload = {
@@ -165,21 +147,16 @@ async def b24_handler():
             else:
                 call_data.update({
                     'internal': internal,
-                    'status': 403
                 })
-                bitrix.finish_call(call_data)
+                finish_call(call_data)
             
         else:
-            call_data.update({
-                'status': 403
-            })
-            bitrix.finish_call(call_data, user_id)
+            finish_call(call_data, user_id)
                 
         return 'ok'
     
     else:
         return 'Not supported event', 400
-
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8000)

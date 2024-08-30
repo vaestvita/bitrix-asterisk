@@ -3,7 +3,6 @@ import re
 import json
 import configparser
 import logging
-import asyncio
 import requests
 import base64
 
@@ -14,13 +13,11 @@ from panoramisk import Manager, Message
 import bitrix
 import utils
 
-config = configparser.ConfigParser()
-config.read('config.ini')
+config_file = 'config.ini'
 
-HOST = config.get('asterisk', 'host')
-PORT = config.get('asterisk', 'port')
-USER = config.get('asterisk', 'username')
-SECRET = config.get('asterisk', 'secret')
+config = configparser.ConfigParser()
+config.read(config_file)
+
 LOC_CONTEXTS = config.get('asterisk', 'loc_contexts')
 IN_CONTEXTS = config.get('asterisk', 'out_contexts')
 DEFAULT_PHONE = config.get('bitrix', 'default_phone')
@@ -47,38 +44,11 @@ STATUSES = {
 
 r = redis.Redis(host='localhost', port=6379, db=1)
 
-logging.basicConfig(level=logging.INFO, format='%(message)s', filename='log.txt')
-logger = logging.getLogger()
+# logging.basicConfig(level=logging.INFO, format='%(message)s', filename='log.txt')
+# logger = logging.getLogger()
 
 
-manager = Manager(
-    host=HOST,
-    port=PORT,
-    username=USER,
-    secret=SECRET,
-    ping_delay=1,  # Delay after start
-    ping_interval=3,  # Periodically ping AMI (dead or alive)
-    loop=asyncio.get_event_loop(),
-)
-
-
-async def originate(extension, phone_num, call_id):
-    """
-    Функция для инициации вызова.
-    """
-    action = {
-        'Action': 'Originate',
-        'Channel': f'Local/{extension}@from-internal',
-        'WaitTime': 20,
-        'CallerID': phone_num,
-        'Variable': f'BITRIX_CALL_ID={call_id}',
-        'Exten': phone_num,
-        'Context': 'from-internal',
-        'Priority': 1
-    }
-
-    await manager.send_action(action)
-
+manager = Manager.from_config(config_file)
 
 @manager.register_event('*')
 async def ami_callback(mngr: Manager, message: Message):
@@ -88,21 +58,6 @@ async def ami_callback(mngr: Manager, message: Message):
         logger = utils.setup_logger(linked_id)
         logger.info(message)
 
-@manager.register_event('VarSet')
-async def ami_callback(mngr: Manager, message: Message):
-    linked_id = message.Linkedid
-    if message.Variable == 'BITRIX_CALL_ID':
-
-        call_data = {
-            'call_id': message.Value,
-            'type': 1,
-            'start_time': time.time(),
-            'internal': message.Exten,
-            'click2call': True,
-        }
-
-        r.json().set(linked_id, "$", call_data)
-        
 
 @manager.register_event('CEL')
 async def ami_callback(mngr: Manager, message: Message):
