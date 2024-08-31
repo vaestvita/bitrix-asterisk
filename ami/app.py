@@ -1,13 +1,16 @@
+import sys
+import os
 from flask import Flask, request, jsonify
 import configparser
 import asyncio
 import threading
 
-import bitrix as bitrix
-
-import ami_engine as engine
+import engine
 import originate
-import utils
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from bitrix import *
+from utils import author_info
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -17,7 +20,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def project_info():
-    return jsonify(utils.author_info)  
+    return jsonify(author_info)  
     
 @app.route('/bitrix', methods=['POST'])
 async def b24_handler():
@@ -31,12 +34,12 @@ async def b24_handler():
         user_id = request.form.get('data[USER_ID]')
         call_id = request.form.get('data[CALL_ID]')
         external = request.form.get('data[PHONE_NUMBER]')
-        internal = bitrix.get_user_phone(user_id)
+        internal = get_user_phone(user_id)
         if internal:
             await originate.originate(internal, external, call_id)
 
         else:
-            bitrix.finish_call({'call_id': call_id}, user_id)
+            finish_call({'call_id': call_id}, user_id)
 
         return 'ok'
     

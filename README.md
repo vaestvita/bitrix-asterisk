@@ -53,10 +53,11 @@ nano config.ini
 
 ## Запуск интеграции
 
-
 + ARI - python ari_engine.py
 + AMI - python ami_engine.py
-+ AMI + Click2call - python app.py
++ ARI + Click2call - python ari/app.py
++ AMI + Click2call - python ami/app.py
++ [Yeastar API](/yeastar/README.md) - python yestar/api_client.py
 
 
 Пример конфигурации [systemd](/examples/b24_integration.service) для автоматического запуска

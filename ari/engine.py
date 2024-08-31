@@ -1,11 +1,16 @@
+import sys
+import os
 import websocket
+import time
 import json
 import redis
 import configparser
 from datetime import datetime
-import bitrix
-import utils
 import logging
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from bitrix import *
+from utils import setup_logger
 
 websocket.enableTrace(False)
 
@@ -53,7 +58,7 @@ def on_message(wsapp, message):
     context = dialplan.get('context')
 
     if LOGGING:
-        logger = utils.setup_logger(channel_id)
+        logger = setup_logger(channel_id)
         logger.info(message)
 
     if event_type == 'ChannelCreated':
@@ -79,7 +84,7 @@ def on_message(wsapp, message):
             call_data['external'] = caller_num
             call_data['type'] = 2
 
-        call_data['call_id'] = bitrix.register_call(call_data)
+        call_data['call_id'] = register_call(call_data)
         r.json().set(channel_id, "$", call_data)
 
     elif event_type == 'ChannelDialplan' and event['dialplan_app'] == 'GotoIf' and context in LOC_CONTEXTS:
@@ -101,6 +106,7 @@ def on_message(wsapp, message):
         call_data = r.json().get(channel_id, "$")
         
         if call_data:
+            call_data = call_data[0]
             dialstatus = event.get('dialstatus')
             caller = event.get('caller', {})
             peer = event.get('peer', {})
@@ -117,11 +123,11 @@ def on_message(wsapp, message):
                     
                 if SHOW_CARD == 1:
                     if peer_number:
-                        bitrix.card_action(call_data[0]['call_id'], peer_number, 'show')
+                        card_action(call_data['call_id'], peer_number, 'show')
                     connected = caller.get('connected', {})
                     number = connected.get('number')
                     if number:
-                        bitrix.card_action(call_data[0]['call_id'], number, 'hide')
+                        card_action(call_data['call_id'], number, 'hide')
             
             elif dialstatus == 'ANSWER':
                 r.json().set(channel_id, "$.status", 200)
@@ -157,12 +163,30 @@ def on_message(wsapp, message):
             cause = str(event['cause'])
             call_data['status'] = call_data.get('status', STATUS_CODES.get(cause, 304))
 
-            resp = bitrix.finish_call(call_data)
+            resp = finish_call(call_data)
             if resp.status_code == 200:
                 r.json().delete(channel_id, "$")
 
 
-wsapp = websocket.WebSocketApp(f"{WS_TYPE}://{HOST}:{PORT}/ari/events?api_key={USER}:{SECRET}&app=thoth&subscribeAll=true",
-                               on_message=on_message)
+def on_error(ws, error):
+    print("Error:", error)
 
-wsapp.run_forever() 
+def on_close(ws):
+    print("### closed ###")
+
+def on_open(ws):
+    print("Opened connection")
+
+def run_websocket():
+    while True:
+        ws = websocket.WebSocketApp(f"{WS_TYPE}://{HOST}:{PORT}/ari/events?api_key={USER}:{SECRET}&app=thoth&subscribeAll=true",
+                                    on_message=on_message,
+                                    on_error=on_error)
+        ws.on_open = on_open
+        ws.run_forever(ping_interval=60, ping_timeout=10)
+        print("Reconnecting...")
+        time.sleep(1)
+
+
+if __name__ == '__main__':
+    run_websocket()
