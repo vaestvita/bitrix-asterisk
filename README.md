@@ -53,8 +53,8 @@ nano config.ini
 
 ## Запуск интеграции
 
-+ ARI - python ari_engine.py
-+ AMI - python ami_engine.py
++ ARI - python ari/engine.py
++ AMI - python ami/engine.py
 + ARI + Click2call - python ari/app.py
 + AMI + Click2call - python ami/app.py
 + [Yeastar API](/yeastar/README.md) - python yestar/api_client.py
