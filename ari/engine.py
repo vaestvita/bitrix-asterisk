@@ -118,14 +118,15 @@ def on_message(ws, message):
             dialstatus = event.get('dialstatus')
             dialstring = event.get('dialstring')
 
-            if call_data.get('type') == 2 and SHOW_CARD == 1:
+            if call_data.get('type') == 2:
                 call_id = call_data.get('call_id')
                 if not dialstatus and dialstring:
                     match = re.search(pattern, dialstring)
                     internal = match.group(0)
                     r.json().set(channel_id, "$.internal", internal)
-                    card_action(call_id, internal, 'show')
-                elif dialstatus in ['NOANSWER', 'BUSY']:
+                    if SHOW_CARD == 1:
+                        card_action(call_id, internal, 'show')
+                if dialstatus in ['NOANSWER', 'BUSY'] and SHOW_CARD == 1:
                     peer_name = event.get('peer').get('name')
                     match = re.search(pattern, peer_name)
                     internal = match.group(0)
