@@ -72,7 +72,7 @@ def finish_call(call_data: dict, user_id=None):
         error_description = finish_data.get('error_description')
         if error_description == 'USER_ID or USER_PHONE_INNER should be set':
             call_data['internal'] = DEFAULT_PHONE
-            finish_call(call_data)
+            return finish_call(call_data)
     # print(resp.json())
 
     return resp
