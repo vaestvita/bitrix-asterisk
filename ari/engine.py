@@ -1,4 +1,5 @@
 import sys
+import re
 import os
 import websocket
 import time
@@ -42,12 +43,15 @@ STATUS_CODES = {
     '127': 603,
 }
 
+
+pattern = r'(?<=/)(\d+)|(?<=sip:)\d+'
+
 r = redis.Redis(host='localhost', port=6379, db=1)
 
-logging.basicConfig(level=logging.INFO, format='%(message)s', filename='log.txt')
+logging.basicConfig(level=logging.INFO, format='%(message)s', filename='log3.txt')
 logger = logging.getLogger()
 
-def on_message(wsapp, message):
+def on_message(ws, message):
     event = json.loads(message)
     event_type = event.get('type')
     start_time = event.get('timestamp')
@@ -74,15 +78,19 @@ def on_message(wsapp, message):
 
         # Outbound call
         if context in LOC_CONTEXTS:
-            call_data['internal'] = caller_num
-            call_data['external'] = exten
-            call_data['type'] = 1
+            call_data.update({
+                'internal': caller_num,
+                'external': exten,
+                'type': 1
+            })
 
         # Inbound call
         elif context in IN_CONTEXTS:
-            call_data['internal'] = DEFAULT_PHONE
-            call_data['external'] = caller_num
-            call_data['type'] = 2
+            call_data.update({
+                'internal': DEFAULT_PHONE,
+                'external': caller_num,
+                'type': 2
+            })
 
         call_data['call_id'] = register_call(call_data)
         r.json().set(channel_id, "$", call_data)
@@ -108,38 +116,23 @@ def on_message(wsapp, message):
         if call_data:
             call_data = call_data[0]
             dialstatus = event.get('dialstatus')
-            caller = event.get('caller', {})
-            peer = event.get('peer', {})
-            peer_dialplan = peer.get('dialplan', {})
-            peer_context = peer_dialplan.get('context')
-            peer_number = peer_dialplan.get('exten')
+            dialstring = event.get('dialstring')
+
+            if call_data.get('type') == 2 and SHOW_CARD == 1:
+                call_id = call_data.get('call_id')
+                if not dialstatus and dialstring:
+                    match = re.search(pattern, dialstring)
+                    internal = match.group(0)
+                    r.json().set(channel_id, "$.internal", internal)
+                    card_action(call_id, internal, 'show')
+                elif dialstatus in ['NOANSWER', 'BUSY']:
+                    peer_name = event.get('peer').get('name')
+                    match = re.search(pattern, peer_name)
+                    internal = match.group(0)
+                    card_action(call_id, internal, 'hide')
             
-            if not dialstatus:
-                if call_data['type'] == 2:
-                    if peer_context == 'from-queue':
-                        r.json().set(channel_id, "$.internal", peer_number)
-                    else:
-                        r.json().set(channel_id, "$.internal", peer.get('caller', {}).get('number'))
-                    
-                if SHOW_CARD == 1:
-                    if peer_number:
-                        card_action(call_data['call_id'], peer_number, 'show')
-                    connected = caller.get('connected', {})
-                    number = connected.get('number')
-                    if number:
-                        card_action(call_data['call_id'], number, 'hide')
-            
-            elif dialstatus == 'ANSWER':
+            if dialstatus == 'ANSWER':
                 r.json().set(channel_id, "$.status", 200)
-                if peer_context == 'from-queue':
-                    number = caller.get('connected', {}).get('number')
-                    if number:
-                        r.json().set(channel_id, "$.internal", number)
-                    else:
-                        dialstring = event.get('dialstring', '')
-                        r.json().set(channel_id, "$.internal", dialstring.split('/')[1].split('@')[0])
-                elif peer_context in LOC_CONTEXTS:
-                    r.json().set(channel_id, "$.internal", peer.get('caller', {}).get('number'))
 
     
     elif event_type == 'BridgeBlindTransfer' and event['result'] == 'Success':
