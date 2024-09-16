@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import configparser
 import base64
+
 import redis
 import requests
 
@@ -11,7 +12,6 @@ from ..utils import author_info
 config = configparser.ConfigParser()
 config.read('config.ini')
 TOKEN_B24 = config.get('bitrix', 'token')
-TOKEN_YS = config.get('yeastar', 'token')
 API_URL_YS = config.get('yeastar', 'api_url')
 DEFAULT_PHONE = config.get('bitrix', 'default_phone')
 
@@ -34,7 +34,8 @@ def project_info():
 
 
 async def ys_api(data: dict, method: str):
-    resp = requests.post(f'{API_URL_YS}{method}?token={TOKEN_YS}', json=data)
+    token = r.get('yeastar_token').decode('utf-8')
+    resp = requests.post(f'{API_URL_YS}{method}?token={token}', json=data)
     return resp
 
 
@@ -68,6 +69,7 @@ async def ys_handler():
                 'external': inbound.get('from'),
                 'type': 2
             }
+
 
     if call_data:
         try:
@@ -104,7 +106,8 @@ async def ys_handler():
                     if resp.status_code == 200:
                         data = resp.json()
                         url_string = f'recording/download?recording={data.get("recording")}&random={data.get("random")}'
-                        file_data = requests.get(f'{API_URL_YS}{url_string}&token={TOKEN_YS}')
+                        token = r.get('yeastar_token').decode('utf-8')
+                        file_data = requests.get(f'{API_URL_YS}{url_string}&token={token}')
                         if file_data.status_code == 200:
                             file_content = file_data.content
                             file_base64 = base64.b64encode(file_content).decode('utf-8')
@@ -152,7 +155,6 @@ async def b24_handler():
             
         else:
             finish_call(call_data, user_id)
-                
         return 'ok'
     
     else:
