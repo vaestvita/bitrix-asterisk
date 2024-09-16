@@ -110,30 +110,31 @@ def on_message(ws, message):
                 r.json().set(channel_id, "$.file_path", file_path)
     
     elif event_type == 'Dial':
-        channel_id = event['caller']['id']
-        call_data = r.json().get(channel_id, "$")
+        channel_id = event.get('caller', {}).get('id')
+        if channel_id:
+            call_data = r.json().get(channel_id, "$")
         
-        if call_data:
-            call_data = call_data[0]
-            dialstatus = event.get('dialstatus')
-            dialstring = event.get('dialstring')
-
-            if call_data.get('type') == 2:
-                call_id = call_data.get('call_id')
-                if not dialstatus and dialstring:
-                    match = re.search(pattern, dialstring)
-                    internal = match.group(0)
-                    r.json().set(channel_id, "$.internal", internal)
-                    if SHOW_CARD == 1:
-                        card_action(call_id, internal, 'show')
-                if dialstatus in ['NOANSWER', 'BUSY'] and SHOW_CARD == 1:
-                    peer_name = event.get('peer').get('name')
-                    match = re.search(pattern, peer_name)
-                    internal = match.group(0)
-                    card_action(call_id, internal, 'hide')
-            
-            if dialstatus == 'ANSWER':
-                r.json().set(channel_id, "$.status", 200)
+            if call_data:
+                call_data = call_data[0]
+                dialstatus = event.get('dialstatus')
+                dialstring = event.get('dialstring')
+    
+                if call_data.get('type') == 2:
+                    call_id = call_data.get('call_id')
+                    if not dialstatus and dialstring:
+                        match = re.search(pattern, dialstring)
+                        internal = match.group(0)
+                        r.json().set(channel_id, "$.internal", internal)
+                        if SHOW_CARD == 1:
+                            card_action(call_id, internal, 'show')
+                    if dialstatus in ['NOANSWER', 'BUSY'] and SHOW_CARD == 1:
+                        peer_name = event.get('peer').get('name')
+                        match = re.search(pattern, peer_name)
+                        internal = match.group(0)
+                        card_action(call_id, internal, 'hide')
+                
+                if dialstatus == 'ANSWER':
+                    r.json().set(channel_id, "$.status", 200)
 
     
     elif event_type == 'BridgeBlindTransfer' and event['result'] == 'Success':
