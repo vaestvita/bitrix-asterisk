@@ -9,7 +9,7 @@ import originate
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from bitrix import *
-from utils import author_info
+from project_info import project_info
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -19,7 +19,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def project_info():
-    return jsonify(author_info)
+    return jsonify(project_info)
 
 @app.route('/bitrix', methods=['POST'])
 async def b24_handler():
