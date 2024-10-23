@@ -11,7 +11,7 @@ import requests
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from bitrix import *
-from project_info import project_info
+from project_data import project_data
 
 
 config = configparser.ConfigParser()
@@ -35,7 +35,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def project_info():
-    return jsonify(project_info)
+    return jsonify(project_data)
 
 
 async def ys_api(data: dict, method: str):

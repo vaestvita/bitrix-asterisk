@@ -10,24 +10,25 @@ def get_token():
     config = configparser.ConfigParser()
     config.read('config.ini')
 
-    API_USER_YS = config.get('yeastar', 'api_user')
-    API_PASS_YS = config.get('yeastar', 'api_pass')
-    API_URL_YS = config.get('yeastar', 'api_url')
+    API_USER = config.get('yeastar', 'api_user')
+    API_PASS = config.get('yeastar', 'api_pass')
+    API_URL = config.get('yeastar', 'api_url')
+    API_ENDPOINT = config.get('yeastar', 'api_url')
 
 
     # Конвертация пароля в MD5
-    md5_hash = hashlib.md5(API_PASS_YS.encode()).hexdigest()
+    md5_hash = hashlib.md5(API_PASS.encode()).hexdigest()
 
     # Подготовка payload
     payload = {
-        'username': API_USER_YS,
-        'password': md5_hash,  # Используем хешированный пароль
-        'port': 8000,
-        'url': 'yeastar'
+        'username': API_USER,
+        'password': md5_hash,
+        'urltag': 1,
+        'url': API_ENDPOINT
     }
 
     # Выполнение POST-запроса
-    resp = requests.post(f'{API_URL_YS}login', json=payload).json()
+    resp = requests.post(f'{API_URL}login', json=payload).json()
 
     if resp.get('status') == 'Success':
         token = resp.get('token')

@@ -1,4 +1,4 @@
-project_info = {
+project_data = {
     'App': {
         'Name': 'AMI/ARI integration of Asterisk-based PBX with Bitrix24 CRM',
         'URL': 'https://github.com/vaestvita/bitrix-asterisk'
