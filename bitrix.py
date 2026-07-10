@@ -4,6 +4,7 @@ import requests
 import logging
 import sqlite3
 import asyncio
+import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import config
@@ -276,6 +277,7 @@ def register_call(call_data: dict, user_id=None):
         'SHOW': show,
         'TYPE': call_type,
         'LINE_NUMBER': call_data.get('line_number', 'default'),
+        "EXTERNAL_CALL_ID": call_data.get("linked_id") or int(time.time())
     }
 
     resp = call_bitrix('telephony.externalcall.register', payload)
