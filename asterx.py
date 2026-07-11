@@ -7,6 +7,7 @@ from pprint import pprint
 import config
 import bitrix
 import ami_tools 
+import asterisk_info
 
 PBX_ID = config.PBX_ID
 APP_DB = config.APP_DB
@@ -77,7 +78,8 @@ async def listen(core_info=None):
                         elif event == 'refresh_users':
                             config.clear_table('users')                        
                             bitrix.get_user_phone()
-                            asyncio.create_task(ami_tools.update_all_peers())
+                            core_info = await asterisk_info.collect_core_info()
+                            await websocket.send(json.dumps(core_info))
                         elif event == 'app_disabled':
                             config.save_param("enabled", 0)
                         elif event == 'contexts_updated':

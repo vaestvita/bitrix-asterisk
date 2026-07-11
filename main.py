@@ -4,37 +4,14 @@ import sys
 import importlib
 import threading
 import asyncio
-from panoramisk import Message
 from pprint import pprint
 import asterx
 import config
-import ami_tools
-
-def extract_core_info(msg: Message):
-    output = msg.Output
-    result = {}
-    keys = ["Version:", "System:", "Entity ID:", "PBX UUID:"]
-    key_map = {
-        "Version:": "version",
-        "System:": "system",
-        "Entity ID:": "entity_id",
-        "PBX UUID:": "pbx_uuid",
-    }
-    for line in output:
-        line = line.strip()
-        for k in keys:
-            if line.startswith(k):
-                result[key_map[k]] = line.split(":", 1)[1].strip()
-    return result
+import asterisk_info
 
 
 def async_core_info(core_info_container):
-    resp = asyncio.run(ami_tools.run_action({"Action": "Command", "Command": "core show settings"}))
-    contexts_dict = asyncio.run(ami_tools.update_all_peers())
-    info = extract_core_info(resp)
-    contexts = [{"context": c, "endpoint": e} for c, e in contexts_dict.items()]
-    info["contexts"] = contexts
-    core_info_container['core_info'] = info
+    core_info_container['core_info'] = asyncio.run(asterisk_info.collect_core_info())
 
 
 def main():
