@@ -16,6 +16,7 @@ LOGGING = config.LOGGING
 REDIS_DB = config.REDIS_DB
 APP_MODE = config.APP_MODE
 APP_DB = config.APP_DB
+VERIFY = config.get_bool_param('verify', default=True)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', filename='bitrix.log')
 logger = logging.getLogger()
@@ -167,7 +168,11 @@ def call_bitrix(method, payload=None, retried=False):
             logger.error(f"B24 local credentials are not configured for method {method}")
             return None
     try:
-        resp = requests.post(b24_url, json=payload)
+        resp = requests.post(
+            b24_url,
+            json=payload,
+            verify=VERIFY
+        )
         if resp.status_code == 401:
             data = resp.json()
             if data.get('error') == 'expired_token':

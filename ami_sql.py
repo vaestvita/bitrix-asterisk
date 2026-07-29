@@ -117,6 +117,10 @@ async def ami_callback(mngr: Manager, message: Message):
             call_store.update_call_data(linked_id, 
                                         file_path=f"{message.Value}.wav",
                                         is_voicemail=True)
+
+    elif event == "MIXMONITORCALL_BEGIN":
+        call_store.update_call_data(linked_id, file_path=message.File)
+
     elif event == "Newexten":
         if message.Application == "VoiceMail":
             internal_phone = message.AppData.split('@')[0]
