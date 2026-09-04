@@ -100,7 +100,7 @@
                   <td>{{ item.context }}</td>
                   <td>
                     <select name="context:{{ item.context }}">
-                      <option value="excluded" {% if item.type == 'excluded' %}selected{% endif %}>Exclude</option>
+                      <option value="exclude" {% if item.type == 'exclude' %}selected{% endif %}>Exclude</option>
                       <option value="internal" {% if item.type == 'internal' %}selected{% endif %}>Internal</option>
                       <option value="external" {% if item.type == 'external' %}selected{% endif %}>External</option>
                     </select>

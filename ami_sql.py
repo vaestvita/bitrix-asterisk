@@ -52,16 +52,23 @@ async def ami_callback(mngr: Manager, message: Message):
     uniqueid = message.Uniqueid
     call_data = call_store.get_call_data(linked_id)
 
+    if call_data and call_data.get('ignored'):
+        if event == "Hangup" and call_data.get('uniqueid') == uniqueid:
+            call_store.delete_call_data(linked_id)
+        return
+
     if event == "Newchannel":
         if not call_data:
             caller = message.CallerIDnum
             exten = message.Exten
+            context_type = config.get_context_type(context)
             insert_data = {
                 'start_time': time.time(),
                 'context': context,
                 'uniqueid': uniqueid,
+                'ignored': context_type == 'exclude',
             }
-            if config.get_context_type(context) == 'external':
+            if context_type == 'external':
                 insert_data.update({"type": 2, "external": caller, "line_number": exten})
                 if config.get_param('smart_route', default="0") == "1":
                     try:
@@ -85,23 +92,23 @@ async def ami_callback(mngr: Manager, message: Message):
                     except Exception as e:
                         logger.info(f"Smart routing failed: {e}")
 
-            elif config.get_context_type(context) == 'internal':
+            elif context_type == 'internal':
                 insert_data.update({"type": 1, "external": exten, "internal": caller, "pending": True})
             call_store.update_call_data(linked_id, **insert_data)
         else:
+            context_type = config.get_context_type(context)
+            initial_context_type = config.get_context_type(call_data['context'])
+            if ('exclude' in {context_type, initial_context_type} or
+                context_type == initial_context_type == 'internal'):
+                call_store.update_call_data(linked_id, ignored=True, pending=False)
+                return
             call_store.update_call_data(linked_id, pending=False)
             internal_phone = message.Channel.split('/')[1].split('-')[0]
-            if config.get_context_type(context) == 'internal':
+            if context_type == 'internal':
                 call_data['internal'] = internal_phone
                 call_store.update_call_data(linked_id, internal=internal_phone)
             call_id = call_data.get('call_id')
             if not call_id:
-                # ignore local calls
-                if (config.get_context_type(context) == 'internal' and
-                    config.get_context_type(call_data['context']) == 'internal'):
-                    print("local call")
-                    call_store.delete_call_data(linked_id)
-                    return
                 call_id = bitrix.register_call(call_data)
                 call_store.update_call_data(linked_id, call_id=call_id)
             else:

@@ -96,7 +96,7 @@ def get_contexts():
         seen.add(context_name)
         result.append({
             'context': context_name,
-            'type': context_type or config.get_context_type(context_name) or 'excluded',
+            'type': context_type or config.get_context_type(context_name) or 'exclude',
         })
     return result
 

@@ -175,9 +175,7 @@ def get_context_type(context):
             _CONTEXT_CACHE = dict(cur.fetchall())
             conn.close()
         context_type = _CONTEXT_CACHE.get(context)
-        if context_type == 'excluded':
-            return None
-        if context_type in {'external', 'internal'}:
+        if context_type in {'exclude', 'external', 'internal'}:
             return context_type
         if context in EXTERNAL_CONTEXTS:
             return "external"
